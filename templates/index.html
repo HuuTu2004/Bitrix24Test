@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Contact - Bitrix24</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+
+<body class="container mt-4">
+    <h2>Danh sách Contact</h2>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Tên</th>
+                <th>Địa chỉ</th>
+                <th>Số điện thoại</th>
+                <th>Email</th>
+                <th>Website</th>
+                <th>Ngân hàng</th>
+                <th>Số tài khoản</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for contact in contacts %}
+            <tr>
+                <td>{{ contact.NAME }}</td>
+                <td>{{ contact.ADDRESS }}</td>
+                <td>{{ contact.PHONE[0].VALUE if contact.PHONE else '' }}</td>
+                <td>{{ contact.EMAIL[0].VALUE if contact.EMAIL else '' }}</td>
+                <td>{{ contact.WEB[0].VALUE if contact.WEB else '' }}</td>
+                <td>{{ contact.ADDRESS_CITY}}</td>
+                <td>{{ contact.ADDRESS_COUNTRY}}</td>
+                <td>
+                    <button class="btn btn-warning btn-sm" onclick="editContact(
+                        '{{ contact.ID }}', 
+                        `{{ contact.NAME }}`, 
+                        `{{ contact.ADDRESS }}`, 
+                        `{{ contact.PHONE[0].VALUE if contact.PHONE else '' }}`, 
+                        `{{ contact.EMAIL[0].VALUE if contact.EMAIL else '' }}`, 
+                        `{{ contact.WEB[0].VALUE if contact.WEB else '' }}`, 
+                        `{{ contact.ADDRESS_CITY }}`, 
+                        `{{ contact.ADDRESS_COUNTRY }}`
+                    )">
+                        Sửa
+                    </button>
+
+                    <a href="/delete_contact/{{ contact.ID }}" class="btn btn-danger btn-sm">Xóa</a>
+                </td>
+
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h3>Thêm Contact</h3>
+    <form id="addForm" action="/add_contact" method="POST">
+        <input type="text" name="name" placeholder="Tên" required>
+        <input type="text" name="address" placeholder="Địa chỉ" required>
+        <input type="text" name="phone" placeholder="Số điện thoại" required>
+        <input type="email" name="email" placeholder="Email" required>
+        <input type="text" name="website" placeholder="Website">
+        <input type="text" name="bank_name" placeholder="Tên ngân hàng">
+        <input type="text" name="bank_account" placeholder="Số tài khoản">
+        <button type="submit" class="btn btn-primary">Thêm</button>
+    </form>
+    <div id="editForm" style="display: none; margin-top: 20px;">
+        <h3>Cập nhật Contact</h3>
+        <form id="updateForm" method="POST">
+            <input type="hidden" id="contactId" name="contact_id">
+            <div class="mb-3">
+                <label class="form-label">Tên</label>
+                <input type="text" id="editName" name="name" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Địa chỉ</label>
+                <input type="text" id="editAddress" name="address" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Số điện thoại</label>
+                <input type="text" id="editPhone" name="phone" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <input type="email" id="editEmail" name="email" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Website</label>
+                <input type="text" id="editWebsite" name="website" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Tên Ngân Hàng</label>
+                <input type="text" id="editBankName" name="bank_name" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Số Tài Khoản</label>
+                <input type="text" id="editBankAccount" name="bank_account" class="form-control">
+            </div>
+            <button type="submit" class="btn btn-success">Cập nhật</button>
+            <button type="button" class="btn btn-secondary" onclick="closeEditForm()">Hủy</button>
+        </form>
+    </div>
+    
+    <script>
+        function editContact(id, name, address, phone, email, website, bank_name, bank_account) {
+            let editForm = document.getElementById("editForm");
+            let addForm = document.getElementById("addForm");
+            if (!editForm) {
+                console.error("editForm không tồn tại!");
+                return;
+            }
+    
+            editForm.style.display = "block";
+            addForm.style.display = "none";
+
+            document.getElementById("contactId").value = id;
+            document.getElementById("editName").value = name;
+            document.getElementById("editAddress").value = address;
+            document.getElementById("editPhone").value = phone;
+            document.getElementById("editEmail").value = email;
+            document.getElementById("editWebsite").value = website;
+            document.getElementById("editBankName").value = bank_name;
+            document.getElementById("editBankAccount").value = bank_account;
+    
+            document.getElementById("updateForm").action = "/update_contact/" + id;
+        }
+    
+        function closeEditForm() {
+            document.getElementById("editForm").style.display = "none";
+            addForm.style.display = "block";
+        }
+    </script>
+    
+</body>
+
+</html>
