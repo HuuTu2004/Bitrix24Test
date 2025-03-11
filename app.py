@@ -1,17 +1,19 @@
-from flask import Flask, request, redirect, render_template
+from flask import Flask, request, redirect, render_template, jsonify
 import requests
 import json
 import os
+import threading
+import time
 
 app = Flask(__name__)
 
-# Thông tin Bitrix24
-BITRIX_CLIENT_ID = "local.67c83a2e30c124.97480219"
-BITRIX_CLIENT_SECRET = "cKRGKUGPL5k6Fiuy2julbXQZcTbzrD0yceHmJjVLkVnPYXaQof"
-REDIRECT_URI = "https://079a-222-252-92-203.ngrok-free.app"
+# ----- Cấu hình Bitrix24 -----
+BITRIX_CLIENT_ID = "local.67cffe70b80d31.65971584"
+BITRIX_CLIENT_SECRET = "OfwguhSRQJn7la9vZqstS6Yk8RxKLWI2P7ZeTDdZcU8vbCMY5Y"
+REDIRECT_URI = "https://7f9e-222-252-92-203.ngrok-free.app"
 TOKEN_FILE = "tokens.json"
 
-# ----- TOKEN HANDLER -----
+# ----- Quản lý Token -----
 def save_token(token_data):
     with open(TOKEN_FILE, "w") as f:
         json.dump(token_data, f, indent=4)
@@ -45,7 +47,9 @@ def refresh_access_token():
     if response.status_code == 200:
         new_token_data = response.json()
         save_token(new_token_data)
+        print("✅ Token refreshed successfully!")
         return new_token_data.get("access_token")
+    print("❌ Failed to refresh token!")
     return None
 
 def fetch_new_token(auth_code):
@@ -65,7 +69,17 @@ def fetch_new_token(auth_code):
         return token_data.get("access_token")
     return None
 
-# ----- CALL BITRIX API -----
+# ----- Tự động refresh token định kỳ -----
+def auto_refresh_token():
+    while True:
+        time.sleep(2700) 
+        new_access_token = refresh_access_token()
+        if new_access_token:
+            print("✅ Access token refreshed thành công!")
+        else:
+            print("❌ Thất bại trong việc refreshed token")
+
+# ----- Gọi API Bitrix24 -----
 def call_bitrix_api(action, payload=None):
     access_token = check_access_token()
     if not access_token:
@@ -81,7 +95,7 @@ def call_bitrix_api(action, payload=None):
     headers = {"Authorization": f"Bearer {access_token}"}
     response = requests.post(url, json=payload, headers=headers)
     
-    if response.status_code == 401:
+    if response.status_code == 401:  # Token hết hạn
         new_access_token = refresh_access_token()
         if new_access_token:
             headers["Authorization"] = f"Bearer {new_access_token}"
@@ -89,10 +103,10 @@ def call_bitrix_api(action, payload=None):
     
     return response.json()
 
-# ----- FLASK ROUTES -----
+# ----- Flask Routes -----
 @app.route("/", methods=["GET", "POST"])
 def index():
-    if not check_access_token():  # Chưa có token -> yêu cầu đăng nhập
+    if not check_access_token():  # Nếu chưa có token -> yêu cầu đăng nhập
         auth_code = request.args.get("code")
         if auth_code:
             fetch_new_token(auth_code)
@@ -101,19 +115,21 @@ def index():
             return redirect(auth_url)
     return redirect("/listCustomer")
      
-    
+@app.route("/install", methods=["POST"])
+def install_app():
+    data = request.form.to_dict()
+    if not data:
+        return jsonify({"error": "No form data received"}), 400
+    print("✅ Nhận sự kiện install thành công, chuyển hướng đến giao diện chính")
+    return redirect("/")
 
-
-# Bài 2: Tạo giao diện cho phép hiển thị, thêm, sửa, xóa contact với các thông tin cơ bản dưới đây
-
+# ----- Quản lý danh sách khách hàng -----
 @app.route("/listCustomer", methods=["GET", "POST"])
 def listCustomer():
     contacts = call_bitrix_api("crm.contact.list", {
         "select": ["ID", "NAME", "ADDRESS", "LAST_NAME", "BIRTHDATE", "PHONE", "EMAIL", "WEB", "ADDRESS_CITY", "ADDRESS_COUNTRY"]
     })
     return render_template("index.html", contacts=contacts.get("result", [])) 
-    
-
 
 @app.route("/add_contact", methods=["POST"])
 def add_contact():
@@ -153,5 +169,7 @@ def delete_contact(contact_id):
     call_bitrix_api("crm.contact.delete", {"ID": contact_id})
     return redirect("/listCustomer")
 
+# ----- Chạy ứng dụng Flask -----
 if __name__ == "__main__":
+    threading.Thread(target=auto_refresh_token, daemon=True).start()  # Chạy luồng tự động refresh token
     app.run(port=8000, debug=True)
